@@ -2757,18 +2757,102 @@ suite("Webview", () => {
         assert.strictEqual(thoughtEl, null);
       });
 
-      test("streamStart clears thought", () => {
-        controller.appendThought("Old thought");
+      test("streamEnd keeps the thought collapsed and retitled", () => {
         controller.handleMessage({ type: "streamStart" });
-        const thoughtEl = elements.messagesEl.querySelector(".agent-thought");
-        assert.strictEqual(thoughtEl, null);
+        controller.handleMessage({ type: "thoughtChunk", text: "Reasoning" });
+        controller.handleMessage({ type: "streamChunk", text: "Answer" });
+        controller.handleMessage({ type: "streamEnd", stopReason: "end_turn" });
+        const thoughtEl = elements.messagesEl.querySelector(
+          "details.agent-thought"
+        );
+        assert.ok(thoughtEl);
+        assert.strictEqual(thoughtEl.hasAttribute("open"), false);
+        assert.strictEqual(thoughtEl.getAttribute("role"), null);
+        assert.strictEqual(
+          thoughtEl.querySelector(".thought-title")?.textContent,
+          "Thought"
+        );
+        assert.strictEqual(
+          thoughtEl.querySelector(".thought-content")?.textContent,
+          "Reasoning"
+        );
       });
 
-      test("streamEnd clears thought", () => {
-        controller.appendThought("Thinking...");
-        controller.handleMessage({ type: "streamEnd" });
+      test("a kept thought stays above the answer", () => {
+        controller.handleMessage({ type: "streamStart" });
+        controller.handleMessage({ type: "thoughtChunk", text: "Reasoning" });
+        controller.handleMessage({ type: "streamChunk", text: "Answer" });
+        controller.handleMessage({ type: "streamEnd", stopReason: "end_turn" });
+        const children = Array.from(elements.messagesEl.children);
+        const thoughtIndex = children.findIndex((el) =>
+          el.classList.contains("agent-thought")
+        );
+        const answerIndex = children.findIndex((el) =>
+          el.classList.contains("assistant")
+        );
+        assert.ok(thoughtIndex >= 0 && answerIndex >= 0);
+        assert.ok(thoughtIndex < answerIndex);
+      });
+
+      test("next turn starts a separate thought panel", () => {
+        controller.handleMessage({ type: "streamStart" });
+        controller.handleMessage({ type: "thoughtChunk", text: "First" });
+        controller.handleMessage({ type: "streamEnd", stopReason: "end_turn" });
+        controller.handleMessage({ type: "streamStart" });
+        controller.handleMessage({ type: "thoughtChunk", text: "Second" });
+        const panels = elements.messagesEl.querySelectorAll(".agent-thought");
+        assert.strictEqual(panels.length, 2);
+        assert.strictEqual(
+          panels[0].querySelector(".thought-content")?.textContent,
+          "First"
+        );
+        assert.strictEqual(
+          panels[1].querySelector(".thought-content")?.textContent,
+          "Second"
+        );
+      });
+
+      test("a finalized thought is no longer a live region", () => {
+        controller.handleMessage({ type: "thoughtChunk", text: "Reasoning" });
+        controller.handleMessage({ type: "streamEnd", stopReason: "end_turn" });
         const thoughtEl = elements.messagesEl.querySelector(".agent-thought");
-        assert.strictEqual(thoughtEl, null);
+        assert.strictEqual(thoughtEl?.getAttribute("aria-live"), null);
+        assert.strictEqual(
+          thoughtEl?.getAttribute("aria-label"),
+          "Assistant thought"
+        );
+      });
+
+      test("cancelled and errored turns keep their thought", () => {
+        for (const stopReason of ["cancelled", "error"] as const) {
+          controller.handleMessage({ type: "chatCleared" });
+          controller.handleMessage({ type: "thoughtChunk", text: stopReason });
+          controller.handleMessage({ type: "streamEnd", stopReason });
+          const thoughtEl = elements.messagesEl.querySelector(
+            "details.agent-thought"
+          );
+          assert.ok(thoughtEl, stopReason);
+          assert.strictEqual(thoughtEl.hasAttribute("open"), false);
+        }
+      });
+
+      test("streamStart finalizes a thought left open by an unfinished turn", () => {
+        controller.handleMessage({ type: "thoughtChunk", text: "Orphan" });
+        controller.handleMessage({ type: "streamStart" });
+        const thoughtEl = elements.messagesEl.querySelector(".agent-thought");
+        assert.ok(thoughtEl);
+        assert.strictEqual(thoughtEl.hasAttribute("open"), false);
+        assert.strictEqual(thoughtEl.getAttribute("role"), null);
+      });
+
+      test("chatCleared removes a finalized thought", () => {
+        controller.handleMessage({ type: "thoughtChunk", text: "Done" });
+        controller.handleMessage({ type: "streamEnd", stopReason: "end_turn" });
+        controller.handleMessage({ type: "chatCleared" });
+        assert.strictEqual(
+          elements.messagesEl.querySelector(".agent-thought"),
+          null
+        );
       });
 
       test("chatCleared removes thought", () => {
