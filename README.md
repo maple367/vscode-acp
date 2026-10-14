@@ -131,10 +131,10 @@ workspace directories are removed before launch; the workspace path is sent
 separately when the ACP session starts. The same rules apply in local and remote
 extension hosts.
 
-| Agent       | Command    | Detection     |
-| ----------- | ---------- | ------------- |
-| OpenCode    | `opencode` | Checks `PATH` |
-| Claude Code | `npx`      | Checks `PATH` |
+| Agent        | Command    | Detection     |
+| ------------ | ---------- | ------------- |
+| OpenCode     | `opencode` | Checks `PATH` |
+| Claude Code  | `npx`      | Checks `PATH` |
 | Hermes Agent | `hermes`   | Checks `PATH` |
 
 For Hermes Agent, verify ACP support with `hermes acp --check`. The extension

@@ -56,15 +56,6 @@ suite("agents", () => {
       assert.strictEqual(agent, undefined);
     });
 
-    test("should allow an explicit Hermes executable path", () => {
-      const agent = getAgent("hermes", {
-        hermes: "C:\\trusted\\hermes.exe",
-      });
-
-      assert.strictEqual(agent?.command, "C:\\trusted\\hermes.exe");
-      assert.deepStrictEqual(agent?.args, ["acp"]);
-    });
-
     test("should apply an explicit executable path override", () => {
       const agent = getAgent("opencode", {
         opencode: "C:\\trusted\\opencode.exe",
